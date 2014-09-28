@@ -6,7 +6,7 @@ typedef struct _tensorSizeGPU
 	int dim;
 	int* size;
 	int dataSize;
-	double* deviceData;
+	type* deviceData;
 } sTensorGPU;
 
 #endif
