@@ -27,22 +27,23 @@ __global__ void contractTensorFin1(type *A, type *B, type* C, int sizeA2, int si
 	A += inx * contract1 + inz * contract1 * sizeA2 * contract2;
 	B += iny * contract1;
 	C += inx + iny * sizeA2 + inz * sizeA2 * sizeB2;
-
-	type sum = 0;
-
+	int stepA = contract1 * sizeA2;
+	int stepB = contract1 * sizeB2;
+	type sum = 0;// [4] = { 0, 0, 0, 0 };
 	for (int j = 0; j < contract2; j++){
-		for (int i = 0; i < contract1; i++){
-			sum += A[i] * B[i];
+		for (int k = 0; k < contract1; k++){
+				sum += A[k] * B[k];
 		}
-		A += contract1 * sizeA2;
-		B += contract1 * sizeB2;
+		A += stepA;
+		B += stepB;
 	}
-	C[0] = sum;
+
+		C[0] = sum;
 }
 
 extern "C" void contractTensorFin1(type *A, type *B, type* C, int sizeA1, int sizeA2, int sizeA3,int sizeA4, int sizeB1, int sizeB2, int sizeB3, int indA, int indB){
 
-	dim3 threads(32, 2, 1);
+	dim3 threads(4, 2, 32);
 	dim3 grid(sizeA2 / threads.x, sizeB2 / threads.y, sizeA4 / threads.z);
 	contractTensorFin1 <<<grid, threads >>>(A, B, C, sizeA2, sizeA4, sizeB2, sizeA1,sizeA3);
 

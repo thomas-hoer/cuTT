@@ -41,7 +41,7 @@ extern "C" void contractTensorFin2(type *A, type *B, type* C, int size){
 	if (size == 2048){
 		dim3 threads(64, 1, 1);
 		dim3 grid(2, 1, 1);
-		contractTensorFin2_32 << <grid, threads >> >(A, B, C);
+		contractTensorFin2_32 <<<grid, threads >>>(A, B, C);
 	}
 
 }

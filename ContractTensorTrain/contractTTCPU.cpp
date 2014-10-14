@@ -17,6 +17,19 @@ typedef struct _tensorSizeCPU
 	type* hostData;
 } sTensorCPU;
 
+sTensorCPU copyToCPU(sTensorGPU &tensor){
+	sTensorCPU tensorOut;
+	tensorOut.dataSize = tensor.dataSize;
+	tensorOut.dim = tensor.dim;
+	type* hostData = (type*)malloc(sizeof(type)*tensor.dataSize);
+	cudaMemcpy(hostData, tensor.deviceData, sizeof(type)*tensor.dataSize, cudaMemcpyDeviceToHost);
+	tensorOut.hostData = hostData;
+	tensorOut.size = (int*)malloc(sizeof(int)*tensor.dim);
+	for (int i = 0; i < tensor.dim; i++)
+		tensorOut.size[i] = tensor.size[i];
+	return tensorOut;
+}
+
 sTensorCPU randomTensorCPU(int dim, int* size, int mod)
 {
 	sTensorCPU tensor;
@@ -29,9 +42,9 @@ sTensorCPU randomTensorCPU(int dim, int* size, int mod)
 	int memSize = sizeof(type)*dataSize;
 	type* hostData = (type*)malloc(memSize);
 	for (int i = 0; i < tensor.dataSize; ++i){
-		//type r = ((type)rand() / (type)RAND_MAX -0.5)*2;
-		hostData[i] = (type)(rand() % mod + 1);
-		//hostData[i] = r;
+		type r = ((type)rand() / (type)RAND_MAX -0.5)*2;
+		hostData[i] = r;
+		//hostData[i] = (type)(rand() % mod + 1);
 	}
 	tensor.hostData = hostData;
 
@@ -69,7 +82,7 @@ void printTensor(sTensorCPU &tensor, int size){
 	for (int i = 0; i<tensor.dataSize&&i<size; i++){
 		//int z = (int) tensor.hostData[i];
 		//printf("%d ",z);
-		printf("%.0f ", tensor.hostData[i]);
+		printf("%.5e ", tensor.hostData[i]);
 		if (i % 32 == 31)
 			printf("\n");
 
@@ -138,7 +151,7 @@ sTensorCPU contractTensor(sTensorCPU &tensorIn1, sTensorCPU &tensorIn2, int ind1
 	return tensorOut;
 }
 
-sTensorCPU contractTensorPerm(sTensorCPU &tensorIn1, sTensorCPU &tensorIn2)
+sTensorCPU contractTensorPerm1(sTensorCPU &tensorIn1, sTensorCPU &tensorIn2)
 {
 	sTensorCPU tensorOut;
 	tensorOut.dim = tensorIn1.dim + tensorIn2.dim - 2;
@@ -150,6 +163,7 @@ sTensorCPU contractTensorPerm(sTensorCPU &tensorIn1, sTensorCPU &tensorIn2)
 	tensorOut.size[1] = tensorIn2.size[1];
 	tensorOut.size[2] = tensorIn2.size[2];
 	tensorOut.size[3] = tensorIn1.size[2];
+	tensorOut.size[4] = tensorIn1.size[3];
 	int dataSize = 1;
 	for (int j = 1; j < tensorIn1.dim; j++)
 		dataSize *= tensorIn1.size[j];
@@ -159,8 +173,53 @@ sTensorCPU contractTensorPerm(sTensorCPU &tensorIn1, sTensorCPU &tensorIn2)
 	tensorOut.hostData = (type*)malloc(sizeof(type)*tensorOut.dataSize);
 	int contract = tensorIn1.size[0];
 	int a2 = tensorIn1.size[1];
-	int a3 = tensorIn1.size[2];
+	int a3 = tensorIn1.size[2] * tensorIn1.size[3];
 	int b2 = tensorIn2.size[1] * tensorIn2.size[2];
+	for (int j1 = 0; j1 < b2; j1++){
+		for (int i1 = 0; i1 < a2; i1++){
+			for (int i2 = 0; i2 < a3; i2++){
+				type sum = 0;
+				for (int c = 0; c < contract; c++){
+					int idxIn1 = c + i1*contract + i2*contract*a2;
+					int idxIn2 = c + j1*contract;
+					sum += tensorIn1.hostData[idxIn1] * tensorIn2.hostData[idxIn2];
+				}
+				int idxOut = i1 + j1*a2 + i2*a2*b2;
+				tensorOut.hostData[idxOut] = sum;
+			}
+		}
+	}
+	freeTensor(tensorIn1);
+	freeTensor(tensorIn2);
+	return tensorOut;
+}
+
+sTensorCPU contractTensorPerm2(sTensorCPU &tensorIn1, sTensorCPU &tensorIn2)
+{
+	sTensorCPU tensorOut;
+	tensorOut.dim = tensorIn1.dim + tensorIn2.dim - 4;
+	tensorOut.size = (int*)malloc(sizeof(int)*tensorOut.dim);
+	if (tensorIn1.size[0] != tensorIn2.size[0]){
+		printf("Unequal Size %d!=%d\n", tensorIn1.size[0], tensorIn2.size[0]);
+	}
+	if (tensorIn1.size[1] != tensorIn2.size[1]){
+		printf("Unequal Size %d!=%d\n", tensorIn1.size[1], tensorIn2.size[1]);
+	}
+	tensorOut.size[0] = tensorIn1.size[2];
+	tensorOut.size[1] = tensorIn2.size[2];
+	tensorOut.size[2] = tensorIn1.size[3];
+	tensorOut.size[3] = tensorIn1.size[4];
+	int dataSize = 1;
+	for (int j = 2; j < tensorIn1.dim; j++)
+		dataSize *= tensorIn1.size[j];
+	for (int j = 2; j < tensorIn2.dim; j++)
+		dataSize *= tensorIn2.size[j];
+	tensorOut.dataSize = dataSize;
+	tensorOut.hostData = (type*)malloc(sizeof(type)*tensorOut.dataSize);
+	int contract = tensorIn1.size[0] * tensorIn1.size[1];
+	int a2 = tensorIn1.size[2];
+	int a3 = tensorIn1.size[3] * tensorIn1.size[4];
+	int b2 = tensorIn2.size[2];
 	for (int j1 = 0; j1 < b2; j1++){
 		for (int i1 = 0; i1 < a2; i1++){
 			for (int i2 = 0; i2 < a3; i2++){

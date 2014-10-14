@@ -16,7 +16,7 @@
  *    |A1  |A2  |A3    |B1  |B2  =>    |A2  |B2  |A3
  *   ###############  ##########      ################
  */
-__global__ void contractTensorPerm(type *A, type *B, type* C, int sizeA2, int sizeA3, int sizeB2, int contract)
+__global__ void contractTensorPermKernel(type *A, type *B, type* C, int sizeA2, int sizeA3, int sizeB2, int contract)
 {
 	const int idx = threadIdx.x;
 	const int idy = threadIdx.y*16;
@@ -53,12 +53,10 @@ __global__ void contractTensorPerm(type *A, type *B, type* C, int sizeA2, int si
 
 }
 
-extern "C" void contractTensorPerm(type *A, type *B, type* C, int sizeA1, int sizeA2, int sizeA3, int sizeB1, int sizeB2, int sizeB3, int indA, int indB){
-
-	sizeB2 *= sizeB3;
+extern "C" void contractTensorPerm(type *A, type *B, type* C, int sizeA1, int sizeA2, int sizeA3, int sizeB2){
 	
 	dim3 threads(32, 2, 1);
 	dim3 grid(sizeA2 / threads.x, sizeB2 / threads.y/16, sizeA3 / threads.z);
-	contractTensorPerm<<<grid, threads >>>(A, B, C, sizeA2, sizeA3, sizeB2, sizeA1);
+	contractTensorPermKernel<<<grid, threads >>>(A, B, C, sizeA2, sizeA3, sizeB2, sizeA1);
 	
 }

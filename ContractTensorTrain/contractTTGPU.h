@@ -9,4 +9,6 @@ typedef struct _tensorSizeGPU
 	type* deviceData;
 } sTensorGPU;
 
+void printTensor(sTensorGPU &tensor, int size);
+sTensorGPU emptyTensor(int memSize, int maxDim);
 #endif
